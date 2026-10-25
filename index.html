@@ -270,7 +270,7 @@
       position: absolute;
       inset: 0;
       z-index: 4;
-      pointer-events: none;
+      pointer-events: auto;
     }
 
     .jar-heart {
@@ -290,6 +290,97 @@
           0 2px 2px rgba(112, 56, 77, 0.18)
         );
     }
+
+    .jar-heart {
+  pointer-events: auto;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.jar-heart.selected-heart {
+  z-index: 20;
+  filter:
+    drop-shadow(0 0 4px #ffffff)
+    drop-shadow(0 0 8px #ed6688)
+    drop-shadow(0 0 12px rgba(237, 102, 136, 0.75));
+  animation: selectedHeartPulse 0.85s ease-in-out infinite alternate;
+}
+
+@keyframes selectedHeartPulse {
+  from {
+    transform:
+      translate(-50%, -50%)
+      rotate(var(--rotation))
+      scale(1);
+  }
+
+  to {
+    transform:
+      translate(-50%, -50%)
+      rotate(var(--rotation))
+      scale(1.18);
+  }
+}
+
+.history-entry {
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.history-entry.selected-history {
+  border-color: rgba(237, 102, 136, 0.75);
+  background: rgba(255, 239, 245, 0.92);
+  box-shadow: 0 0 0 3px rgba(237, 102, 136, 0.12);
+}
+
+.recently-removed-list {
+  display: grid;
+  gap: 8px;
+}
+
+.removed-entry {
+  display: grid;
+  grid-template-columns: 27px 1fr auto;
+  gap: 9px;
+  align-items: center;
+  padding: 10px 11px;
+  border: 1px solid rgba(121, 72, 91, 0.13);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.65);
+}
+
+.removed-heart {
+  font-size: 23px;
+  line-height: 1;
+}
+
+.removed-details {
+  min-width: 0;
+}
+
+.removed-note {
+  color: #704557;
+  font-size: 14px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.removed-date {
+  margin-top: 3px;
+  color: #a07988;
+  font-size: 12px;
+}
+
+.restore-heart-button {
+  min-height: 36px;
+  border: 1px solid var(--button-border);
+  border-radius: 11px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #79485b;
+  font-size: 13px;
+  font-weight: 680;
+}
 
     .jar-heart.new-heart {
       animation: settleHeart 0.28s ease-out;
@@ -825,7 +916,7 @@
         id="removeButton"
         type="button"
       >
-        Remove One
+        Remove Selected
       </button>
 
       <button
@@ -855,6 +946,14 @@
       </button>
 
       <button
+  class="tab-button"
+  type="button"
+  data-panel="removedPanel"
+>
+  Removed
+</button>
+
+      <button
         class="tab-button"
         type="button"
         data-panel="backupPanel"
@@ -879,6 +978,25 @@
       <div id="monthList"></div>
     </section>
 
+<section
+  class="panel"
+  id="removedPanel"
+>
+  <h2>Recently Removed</h2>
+
+  <button
+    class="secondary-button"
+    id="undoRemoveButton"
+    type="button"
+    disabled
+    style="width: 100%; margin-bottom: 10px;"
+  >
+    Undo Last Removal
+  </button>
+
+  <div id="removedList"></div>
+</section>
+    
     <section
       class="panel"
       id="backupPanel"
@@ -1034,6 +1152,12 @@
     const restoreInput =
       document.getElementById('restoreInput');
 
+    const undoRemoveButton =
+  document.getElementById('undoRemoveButton');
+
+const removedList =
+  document.getElementById('removedList');
+
     const status =
       document.getElementById('status');
 
@@ -1070,6 +1194,7 @@
         document.querySelectorAll('.panel')
       );
 
+let selectedHeartId = null; 
     let selectedColor = DEFAULT_COLOR;
     let isAnimating = false;
     let statusTimer = null;
@@ -1257,11 +1382,12 @@
         currentMonth;
 
       if (!appData.months[currentMonth]) {
-        appData.months[currentMonth] = {
-          month: currentMonth,
-          hearts: [],
-          createdAt: new Date().toISOString()
-        };
+       appData.months[currentMonth] = {
+  month: currentMonth,
+  hearts: [],
+  removedHearts: [],
+  createdAt: new Date().toISOString()
+};
       }
 
       if (
@@ -1271,6 +1397,14 @@
       ) {
         appData.months[currentMonth].hearts = [];
       }
+
+      if (
+  !Array.isArray(
+    appData.months[currentMonth].removedHearts
+  )
+) {
+  appData.months[currentMonth].removedHearts = [];
+}
 
       saveData();
     }
@@ -1284,14 +1418,15 @@
     }
 
     function renderAll() {
-      renderMonthTitle();
-      renderHeartPile();
-      renderCounter();
-      renderHistory();
-      renderMonths();
-      updateControlStates();
-      updateSelectedHeartColor();
-    }
+  renderMonthTitle();
+  renderHeartPile();
+  renderCounter();
+  renderHistory();
+  renderMonths();
+  renderRemovedHearts();
+  updateControlStates();
+  updateSelectedHeartColor();
+}
 
     function renderMonthTitle() {
       monthTitle.textContent =
@@ -1299,51 +1434,136 @@
     }
 
     function renderHeartPile(newHeartIndex) {
-      heartPile.innerHTML = '';
+  heartPile.innerHTML = '';
 
-      const hearts =
-        getCurrentJar().hearts;
+  const hearts =
+    getCurrentJar().hearts;
 
-      const visualHearts =
-        hearts.slice(0, VISUAL_LIMIT);
+  const visualHearts =
+    hearts.slice(0, VISUAL_LIMIT);
 
-      visualHearts.forEach(function (heart, index) {
-        const spot =
-          landingSpots[index];
+  visualHearts.forEach(function (heart, index) {
+    const spot =
+      landingSpots[index];
 
-        if (!spot) {
-          return;
-        }
-
-        const jarHeart =
-          document.createElement('div');
-
-        jarHeart.className = 'jar-heart';
-        jarHeart.textContent = '♥';
-
-        if (index === newHeartIndex) {
-          jarHeart.classList.add('new-heart');
-        }
-
-        jarHeart.style.left =
-          spot.x + '%';
-
-        jarHeart.style.top =
-          spot.y + '%';
-
-        jarHeart.style.setProperty(
-          '--rotation',
-          spot.rotation + 'deg'
-        );
-
-        jarHeart.style.setProperty(
-          '--heart-color',
-          heart.color || DEFAULT_COLOR
-        );
-
-        heartPile.appendChild(jarHeart);
-      });
+    if (!spot) {
+      return;
     }
+
+    const jarHeart =
+      document.createElement('div');
+
+    jarHeart.className = 'jar-heart';
+    jarHeart.textContent = '♥';
+    jarHeart.dataset.heartId = heart.id;
+    jarHeart.setAttribute('role', 'button');
+    jarHeart.setAttribute('tabindex', '0');
+
+    jarHeart.setAttribute(
+      'aria-label',
+      heart.note
+        ? 'Heart for ' + heart.note
+        : 'Heart earned ' +
+          formatHeartDate(heart.createdAt)
+    );
+
+    if (index === newHeartIndex) {
+      jarHeart.classList.add('new-heart');
+    }
+
+    if (heart.id === selectedHeartId) {
+      jarHeart.classList.add('selected-heart');
+    }
+
+    jarHeart.style.left =
+      spot.x + '%';
+
+    jarHeart.style.top =
+      spot.y + '%';
+
+    jarHeart.style.setProperty(
+      '--rotation',
+      spot.rotation + 'deg'
+    );
+
+    jarHeart.style.setProperty(
+      '--heart-color',
+      heart.color || DEFAULT_COLOR
+    );
+
+    jarHeart.addEventListener(
+      'click',
+      function (event) {
+        event.stopPropagation();
+        selectHeart(heart.id, false);
+      }
+    );
+
+    jarHeart.addEventListener(
+      'keydown',
+      function (event) {
+        if (
+          event.key === 'Enter' ||
+          event.key === ' '
+        ) {
+          event.preventDefault();
+          selectHeart(heart.id, false);
+        }
+      }
+    );
+
+    heartPile.appendChild(jarHeart);
+  });
+}
+
+function selectHeart(heartId, scrollToJar) {
+  const hearts =
+    getCurrentJar().hearts;
+
+  const index =
+    hearts.findIndex(function (heart) {
+      return heart.id === heartId;
+    });
+
+  if (index === -1) {
+    selectedHeartId = null;
+    renderAll();
+    return;
+  }
+
+  if (selectedHeartId === heartId) {
+    selectedHeartId = null;
+    renderHeartPile();
+    renderHistory();
+    updateControlStates();
+    showStatus('Heart selection cleared.');
+    return;
+  }
+
+  selectedHeartId = heartId;
+
+  renderHeartPile();
+  renderHistory();
+  updateControlStates();
+
+  if (index >= VISUAL_LIMIT) {
+    showStatus(
+      'This heart was earned after the jar was visually full. It is still saved and can be removed or restored.'
+    );
+    return;
+  }
+
+  if (scrollToJar) {
+    jar.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center'
+    });
+  }
+
+  showStatus(
+    'Heart selected. Tap Remove Selected if you want to remove it.'
+  );
+}
 
     function renderCounter() {
       const count =
@@ -1387,79 +1607,310 @@
     }
 
     function renderHistory() {
-      const hearts =
-        getCurrentJar().hearts;
+  const hearts =
+    getCurrentJar().hearts;
 
-      const notedHearts =
-        hearts
-          .filter(function (heart) {
-            return (
-              typeof heart.note === 'string' &&
-              heart.note.trim().length > 0
-            );
-          })
-          .slice()
-          .reverse();
+  const notedHearts =
+    hearts
+      .filter(function (heart) {
+        return (
+          typeof heart.note === 'string' &&
+          heart.note.trim().length > 0
+        );
+      })
+      .slice()
+      .reverse();
 
-      historyList.innerHTML = '';
+  historyList.innerHTML = '';
 
-      if (notedHearts.length === 0) {
-        const empty =
-          document.createElement('p');
+  if (notedHearts.length === 0) {
+    const empty =
+      document.createElement('p');
 
-        empty.className = 'empty-message';
-        empty.textContent =
-          'Hearts with notes will appear here. Notes are always optional.';
+    empty.className = 'empty-message';
+    empty.textContent =
+      'Hearts with notes will appear here. Notes are always optional.';
 
-        historyList.appendChild(empty);
-        return;
-      }
+    historyList.appendChild(empty);
+    return;
+  }
 
-      const list =
-        document.createElement('div');
+  const list =
+    document.createElement('div');
 
-      list.className = 'history-list';
+  list.className = 'history-list';
 
-      notedHearts.forEach(function (heart) {
-        const entry =
-          document.createElement('div');
+  notedHearts.forEach(function (heart) {
+    const entry =
+      document.createElement('div');
 
-        entry.className = 'history-entry';
+    entry.className = 'history-entry';
+    entry.dataset.heartId = heart.id;
+    entry.setAttribute('role', 'button');
+    entry.setAttribute('tabindex', '0');
 
-        const heartIcon =
-          document.createElement('div');
-
-        heartIcon.className = 'history-heart';
-        heartIcon.textContent = '♥';
-        heartIcon.style.color =
-          heart.color || DEFAULT_COLOR;
-
-        const details =
-          document.createElement('div');
-
-        const note =
-          document.createElement('div');
-
-        note.className = 'history-note';
-        note.textContent = heart.note;
-
-        const date =
-          document.createElement('div');
-
-        date.className = 'history-date';
-        date.textContent =
-          formatHeartDate(heart.createdAt);
-
-        details.appendChild(note);
-        details.appendChild(date);
-
-        entry.appendChild(heartIcon);
-        entry.appendChild(details);
-        list.appendChild(entry);
-      });
-
-      historyList.appendChild(list);
+    if (heart.id === selectedHeartId) {
+      entry.classList.add('selected-history');
     }
+
+    const heartIcon =
+      document.createElement('div');
+
+    heartIcon.className = 'history-heart';
+    heartIcon.textContent = '♥';
+    heartIcon.style.color =
+      heart.color || DEFAULT_COLOR;
+
+    const details =
+      document.createElement('div');
+
+    const note =
+      document.createElement('div');
+
+    note.className = 'history-note';
+    note.textContent = heart.note;
+
+    const date =
+      document.createElement('div');
+
+    date.className = 'history-date';
+    date.textContent =
+      formatHeartDate(heart.createdAt);
+
+    details.appendChild(note);
+    details.appendChild(date);
+
+    entry.appendChild(heartIcon);
+    entry.appendChild(details);
+
+    entry.addEventListener(
+      'click',
+      function () {
+        selectHeart(heart.id, true);
+      }
+    );
+
+    entry.addEventListener(
+      'keydown',
+      function (event) {
+        if (
+          event.key === 'Enter' ||
+          event.key === ' '
+        ) {
+          event.preventDefault();
+          selectHeart(heart.id, true);
+        }
+      }
+    );
+
+    list.appendChild(entry);
+  });
+
+  historyList.appendChild(list);
+}
+
+function getRemovedHearts() {
+  const jarData =
+    getCurrentJar();
+
+  if (!Array.isArray(jarData.removedHearts)) {
+    jarData.removedHearts = [];
+  }
+
+  return jarData.removedHearts;
+}
+
+function renderRemovedHearts() {
+  const removedHearts =
+    getRemovedHearts()
+      .slice()
+      .reverse();
+
+  removedList.innerHTML = '';
+
+  undoRemoveButton.disabled =
+    removedHearts.length === 0;
+
+  if (removedHearts.length === 0) {
+    const empty =
+      document.createElement('p');
+
+    empty.className = 'empty-message';
+    empty.textContent =
+      'Removed hearts will stay here so you can restore them.';
+
+    removedList.appendChild(empty);
+    return;
+  }
+
+  const list =
+    document.createElement('div');
+
+  list.className = 'recently-removed-list';
+
+  removedHearts.forEach(function (heart) {
+    const entry =
+      document.createElement('div');
+
+    entry.className = 'removed-entry';
+
+    const icon =
+      document.createElement('div');
+
+    icon.className = 'removed-heart';
+    icon.textContent = '♥';
+    icon.style.color =
+      heart.color || DEFAULT_COLOR;
+
+    const details =
+      document.createElement('div');
+
+    details.className = 'removed-details';
+
+    const note =
+      document.createElement('div');
+
+    note.className = 'removed-note';
+    note.textContent =
+      heart.note || 'Heart with no note';
+
+    const date =
+      document.createElement('div');
+
+    date.className = 'removed-date';
+    date.textContent =
+      'Originally earned ' +
+      formatHeartDate(heart.createdAt);
+
+    const restoreButton =
+      document.createElement('button');
+
+    restoreButton.className =
+      'restore-heart-button';
+
+    restoreButton.type = 'button';
+    restoreButton.textContent = 'Restore';
+
+    restoreButton.addEventListener(
+      'click',
+      function () {
+        restoreRemovedHeart(heart.id);
+      }
+    );
+
+    details.appendChild(note);
+    details.appendChild(date);
+
+    entry.appendChild(icon);
+    entry.appendChild(details);
+    entry.appendChild(restoreButton);
+
+    list.appendChild(entry);
+  });
+
+  removedList.appendChild(list);
+}
+
+function moveHeartToRemoved(heart) {
+  heart.removedAt =
+    new Date().toISOString();
+
+  getRemovedHearts().push(heart);
+}
+
+function removeSelectedHeart() {
+  if (!selectedHeartId) {
+    showStatus(
+      'Tap a heart in the jar or a note in Heart History first.'
+    );
+    return;
+  }
+
+  const hearts =
+    getCurrentJar().hearts;
+
+  const index =
+    hearts.findIndex(function (heart) {
+      return heart.id === selectedHeartId;
+    });
+
+  if (index === -1) {
+    selectedHeartId = null;
+    renderAll();
+    return;
+  }
+
+  const removed =
+    hearts.splice(index, 1)[0];
+
+  moveHeartToRemoved(removed);
+
+  selectedHeartId = null;
+
+  saveData();
+  renderAll();
+
+  showStatus(
+    'Heart removed. Open Removed to restore it.'
+  );
+}
+
+function restoreRemovedHeart(heartId) {
+  const removedHearts =
+    getRemovedHearts();
+
+  const index =
+    removedHearts.findIndex(function (heart) {
+      return heart.id === heartId;
+    });
+
+  if (index === -1) {
+    return;
+  }
+
+  const restored =
+    removedHearts.splice(index, 1)[0];
+
+  delete restored.removedAt;
+
+  getCurrentJar().hearts.push(restored);
+
+  selectedHeartId =
+    restored.id;
+
+  saveData();
+  renderAll();
+
+  showStatus(
+    'Heart restored with its original note, color, and date.'
+  );
+}
+
+function restoreLastRemovedHeart() {
+  const removedHearts =
+    getRemovedHearts();
+
+  if (removedHearts.length === 0) {
+    return;
+  }
+
+  const restored =
+    removedHearts.pop();
+
+  delete restored.removedAt;
+
+  getCurrentJar().hearts.push(restored);
+
+  selectedHeartId =
+    restored.id;
+
+  saveData();
+  renderAll();
+
+  showStatus(
+    'The last removed heart was restored.'
+  );
+}
 
     function renderMonths() {
       monthList.innerHTML = '';
@@ -1522,13 +1973,18 @@
     }
 
     function updateControlStates() {
-      const empty =
-        getHeartCount() === 0;
+  const empty =
+    getHeartCount() === 0;
 
-      undoButton.disabled = empty;
-      removeButton.disabled = empty;
-      emptyButton.disabled = empty;
-    }
+  undoButton.disabled = empty;
+  emptyButton.disabled = empty;
+
+  removeButton.disabled =
+    !selectedHeartId;
+
+  undoRemoveButton.disabled =
+    getRemovedHearts().length === 0;
+}
 
     function updateSelectedHeartColor() {
       document.documentElement.style.setProperty(
@@ -1759,12 +2215,26 @@ fallingHeart.style.animationDuration =
     }
 
     function removeLatestHeart(message) {
-      const hearts =
-        getCurrentJar().hearts;
+  const hearts =
+    getCurrentJar().hearts;
 
-      if (hearts.length === 0) {
-        return;
-      }
+  if (hearts.length === 0) {
+    return;
+  }
+
+  const removed =
+    hearts.pop();
+
+  moveHeartToRemoved(removed);
+
+  if (selectedHeartId === removed.id) {
+    selectedHeartId = null;
+  }
+
+  saveData();
+  renderAll();
+  showStatus(message);
+}
 
       hearts.pop();
 
@@ -1970,13 +2440,14 @@ fallingHeart.style.animationDuration =
     );
 
     removeButton.addEventListener(
-      'click',
-      function () {
-        removeLatestHeart(
-          'One heart was removed.'
-        );
-      }
-    );
+  'click',
+  removeSelectedHeart
+);
+
+undoRemoveButton.addEventListener(
+  'click',
+  restoreLastRemovedHeart
+);
 
     emptyButton.addEventListener(
       'click',
@@ -1995,10 +2466,21 @@ fallingHeart.style.animationDuration =
     confirmDialogButton.addEventListener(
       'click',
       function () {
-        getCurrentJar().hearts = [];
+        const currentJar =
+  getCurrentJar();
 
-        saveData();
-        renderAll();
+const heartsToRemove =
+  currentJar.hearts.slice();
+
+heartsToRemove.forEach(function (heart) {
+  moveHeartToRemoved(heart);
+});
+
+currentJar.hearts = [];
+selectedHeartId = null;
+
+saveData();
+renderAll();
 
         dialogBackdrop.classList.remove('show');
 
