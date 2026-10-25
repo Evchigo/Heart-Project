@@ -92,19 +92,13 @@
       animation: fallToJar 1.45s linear forwards;
     }
 
-    @keyframes fallToJar {
+@keyframes fallToJar {
   from {
-    transform:
-      translate(0, 0)
-      rotate(0deg)
-      scale(1);
+    transform: translate(0, 0);
   }
 
   to {
-    transform:
-      translate(var(--fall-x), var(--fall-y))
-      rotate(var(--landing-rotation))
-      scale(0.72);
+    transform: translate(var(--fall-x), var(--fall-y));
   }
 }
 
@@ -368,11 +362,6 @@
           sourceRect.top -
           sourceRect.height / 2 +
           'px'
-      );
-
-      fallingHeart.style.setProperty(
-        '--landing-rotation',
-        spot.rotation + 'deg'
       );
 
       document.body.appendChild(fallingHeart);
