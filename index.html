@@ -1675,21 +1675,37 @@
           : '31px'
       );
 
-      fallingHeart.style.setProperty(
-        '--fall-x',
-        destinationX -
-          startRect.left -
-          startRect.width / 2 +
-          'px'
-      );
+      const fallX =
+  destinationX -
+  startRect.left -
+  startRect.width / 2;
 
-      fallingHeart.style.setProperty(
-        '--fall-y',
-        destinationY -
-          startRect.top -
-          startRect.height / 2 +
-          'px'
-      );
+const fallY =
+  destinationY -
+  startRect.top -
+  startRect.height / 2;
+
+const fallDistance =
+  Math.hypot(fallX, fallY);
+
+const fallDuration =
+  Math.min(
+    0.9,
+    Math.max(0.18, fallDistance / 360)
+  );
+
+fallingHeart.style.setProperty(
+  '--fall-x',
+  fallX + 'px'
+);
+
+fallingHeart.style.setProperty(
+  '--fall-y',
+  fallY + 'px'
+);
+
+fallingHeart.style.animationDuration =
+  fallDuration + 's';
 
       document.body.appendChild(fallingHeart);
 
