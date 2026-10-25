@@ -93,59 +93,16 @@
     }
 
     @keyframes fallToJar {
-  0% {
+  from {
     transform:
       translate(0, 0)
       rotate(0deg)
       scale(1);
   }
 
-  20% {
+  to {
     transform:
-      translate(
-        calc(var(--fall-x) * 0.15),
-        calc(var(--fall-y) * 0.12)
-      )
-      rotate(4deg)
-      scale(0.96);
-  }
-
-  45% {
-    transform:
-      translate(
-        calc(var(--fall-x) * 0.40),
-        calc(var(--fall-y) * 0.36)
-      )
-      rotate(10deg)
-      scale(0.88);
-  }
-
-  70% {
-    transform:
-      translate(
-        calc(var(--fall-x) * 0.68),
-        calc(var(--fall-y) * 0.66)
-      )
-      rotate(-6deg)
-      scale(0.80);
-  }
-
-  90% {
-    transform:
-      translate(
-        calc(var(--fall-x) * 0.92),
-        calc(var(--fall-y) * 0.92)
-      )
-      rotate(4deg)
-      scale(0.74);
-  }
-
-  100% {
-    transform:
-      translate(
-        var(--fall-x),
-        var(--fall-y)
-      )
+      translate(var(--fall-x), var(--fall-y))
       rotate(var(--landing-rotation))
       scale(0.72);
   }
