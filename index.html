@@ -66,6 +66,29 @@
       transform: scale(1.08);
     }
 
+    .heart-source.falling {
+      animation: fallIntoJar 0.8s ease-in forwards;
+      pointer-events: none;
+    }
+
+    @keyframes fallIntoJar {
+      0% {
+        transform: translateY(0) rotate(0deg) scale(1);
+      }
+    
+      35% {
+        transform: translateY(80px) rotate(10deg) scale(0.98);
+      }
+    
+      70% {
+        transform: translateY(175px) rotate(-8deg) scale(0.94);
+      }
+    
+      100% {
+        transform: translateY(260px) rotate(6deg) scale(0.9);
+      }
+    }
+    
     .hint {
       margin: 0 0 18px;
       font-size: 14px;
@@ -178,5 +201,12 @@
 
     <div class="counter">0 Hearts</div>
   </main>
+  <script>
+const heart = document.querySelector('.heart-source');
+heart.addEventListener('click', function () {
+if (heart.classList.contains('falling')) return;
+heart.classList.add('falling');
+});
+</script>
 </body>
 </html>
