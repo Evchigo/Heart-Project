@@ -94,8 +94,24 @@ heartSource.onpointermove=e=>{if(e.pointerId!==pointerId)return;const x=e.client
 heartSource.onpointerup=e=>{if(e.pointerId!==pointerId)return;if(heartSource.hasPointerCapture(e.pointerId))heartSource.releasePointerCapture(e.pointerId);if(drag){const jr=jar.getBoundingClientRect(),r=heartSource.getBoundingClientRect(),inside=e.clientX>=jr.left&&e.clientX<=jr.right&&e.clientY>=jr.top&&e.clientY<=jr.bottom;resetDrag();if(inside)animate(r,record());suppressClick=true;setTimeout(()=>suppressClick=false,120)}pointerId=null;drag=false};heartSource.onpointercancel=()=>{resetDrag();pointerId=null;drag=false};heartSource.onclick=()=>{if(!suppressClick)addTop()};heartSource.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();addTop()}};
 $('clearNote').onclick=()=>{noteInput.value='';noteInput.focus()};$('undo').onclick=undoLatest;$('removeSelected').onclick=removeSelected;$('emptyJar').onclick=()=>$('dialog').classList.add('show');$('cancelEmpty').onclick=()=>$('dialog').classList.remove('show');$('confirmEmpty').onclick=()=>{const j=jarData(),batch=Date.now().toString(36);j.hearts.forEach(h=>{h.removedAt=new Date().toISOString();h.batch=batch;j.removed.push(h)});j.hearts=[];selectedIds.clear();save();renderAll();$('dialog').classList.remove('show');show('Jar emptied. Hearts can be restored.')};$('undoRemoval').onclick=undoRemoval;$('saveNote').onclick=saveNote;$('deleteNote').onclick=deleteNote;$('cancelEdit').onclick=closeEditor;$('returnCurrent').onclick=()=>{viewMonth=null;selectedIds.clear();closeEditor();renderAll()};
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.id===b.dataset.panel))});
-$('downloadBackup').onclick=()=>{const blob=new Blob([JSON.stringify({exportedAt:new Date().toISOString(),data},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='heart-jar-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(url)};
-$('restoreFile').onchange=e=>{const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=()=>{try{const p=JSON.parse(reader.result),r=p.data||p;if(!r.months)throw Error();data=r;initMonth();viewMonth=null;selectedIds.clear();renderAll();show('Backup restored.')}catch{show('Invalid Heart Jar backup.')}e.target.value=''};reader.readAsText(file)};
+$('downloadBackup').onclick=()=>{
+  const blob=new Blob(
+    [JSON.stringify({exportedAt:new Date().toISOString(),data},null,2)],
+    {type:'application/json'}
+  );
+
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+
+  a.href=url;
+  a.download='heart-jar-backup-'+new Date().toISOString().slice(0,10)+'.json';
+
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+};$('restoreFile').onchange=e=>{const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=()=>{try{const p=JSON.parse(reader.result),r=p.data||p;if(!r.months)throw Error();data=r;initMonth();viewMonth=null;selectedIds.clear();renderAll();show('Backup restored.')}catch{show('Invalid Heart Jar backup.')}e.target.value=''};reader.readAsText(file)};
 window.addEventListener('focus',()=>{if(monthKey()!==data.currentMonth){initMonth();viewMonth=null;selectedIds.clear();renderAll()}});
 
 if ('serviceWorker' in navigator) {
